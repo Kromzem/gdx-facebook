@@ -17,21 +17,40 @@
 
 package de.tomgrill.gdxfacebook.iosmoe;
 
+import com.badlogic.gdx.Gdx;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.ArrayMap;
+
+import org.moe.natj.general.ann.Mapped;
+import org.moe.natj.general.ptr.Ptr;
+import org.moe.natj.objc.map.ObjCObjectMapper;
+
+import java.util.Map;
+
 import apple.foundation.NSData;
 import apple.foundation.NSDictionary;
 import apple.foundation.NSError;
 import apple.foundation.NSJSONSerialization;
 import apple.foundation.NSMutableArray;
 import apple.foundation.NSMutableDictionary;
-import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.backends.iosmoe.IOSApplication;
-import com.badlogic.gdx.utils.Array;
-import com.badlogic.gdx.utils.ArrayMap;
-
 import apple.foundation.NSString;
 import apple.foundation.enums.Enums;
 import apple.foundation.enums.NSJSONReadingOptions;
-import de.tomgrill.gdxfacebook.core.*;
+import apple.uikit.UIViewController;
+import de.tomgrill.gdxfacebook.core.AbstractRequest;
+import de.tomgrill.gdxfacebook.core.GDXFacebookAccessToken;
+import de.tomgrill.gdxfacebook.core.GDXFacebookBasic;
+import de.tomgrill.gdxfacebook.core.GDXFacebookCallback;
+import de.tomgrill.gdxfacebook.core.GDXFacebookConfig;
+import de.tomgrill.gdxfacebook.core.GDXFacebookError;
+import de.tomgrill.gdxfacebook.core.GDXFacebookGameRequest;
+import de.tomgrill.gdxfacebook.core.GDXFacebookVars;
+import de.tomgrill.gdxfacebook.core.GameRequestResult;
+import de.tomgrill.gdxfacebook.core.JsonResult;
+import de.tomgrill.gdxfacebook.core.Request;
+import de.tomgrill.gdxfacebook.core.SignInMode;
+import de.tomgrill.gdxfacebook.core.SignInResult;
+import de.tomgrill.gdxfacebook.core.SignOutMode;
 import de.tomgrill.gdxfacebook.iosmoe.bindings.sdk.core.fbsdkcorekit.FBSDKAccessToken;
 import de.tomgrill.gdxfacebook.iosmoe.bindings.sdk.core.fbsdkcorekit.FBSDKGraphRequest;
 import de.tomgrill.gdxfacebook.iosmoe.bindings.sdk.core.fbsdkcorekit.FBSDKGraphRequestConnection;
@@ -42,16 +61,12 @@ import de.tomgrill.gdxfacebook.iosmoe.bindings.sdk.share.fbsdksharekit.FBSDKGame
 import de.tomgrill.gdxfacebook.iosmoe.bindings.sdk.share.fbsdksharekit.enums.FBSDKGameRequestActionType;
 import de.tomgrill.gdxfacebook.iosmoe.bindings.sdk.share.fbsdksharekit.enums.FBSDKGameRequestFilter;
 import de.tomgrill.gdxfacebook.iosmoe.bindings.sdk.share.fbsdksharekit.protocol.FBSDKGameRequestDialogDelegate;
-import org.moe.natj.general.ann.Mapped;
-import org.moe.natj.general.ptr.Ptr;
-import org.moe.natj.objc.map.ObjCObjectMapper;
-
-import java.util.Map;
 
 public class IOSMOEGDXFacebook extends GDXFacebookBasic {
 
     private FBSDKLoginManager loginManager;
     private SignInMode signInMode;
+    public UIViewController controller;
 
     public IOSMOEGDXFacebook(GDXFacebookConfig config) {
         super(config);
@@ -205,8 +220,9 @@ public class IOSMOEGDXFacebook extends GDXFacebookBasic {
             listPermissions.addObject(permissions.get(i));
         }
 
+
         if (this.signInMode == SignInMode.PUBLISH) {
-            loginManager.logInWithPublishPermissionsFromViewControllerHandler(listPermissions, ((IOSApplication) Gdx.app).getUIViewController(), new FBSDKLoginManager.Block_logInWithPublishPermissionsFromViewControllerHandler() {
+            loginManager.logInWithPublishPermissionsFromViewControllerHandler(listPermissions, controller, new FBSDKLoginManager.Block_logInWithPublishPermissionsFromViewControllerHandler() {
                 @Override
                 public void call_logInWithPublishPermissionsFromViewControllerHandler(FBSDKLoginManagerLoginResult loginResult, NSError nsError) {
                     if (nsError != null) {
@@ -225,7 +241,7 @@ public class IOSMOEGDXFacebook extends GDXFacebookBasic {
                 }
             });
         } else {
-            loginManager.logInWithReadPermissionsFromViewControllerHandler(listPermissions, ((IOSApplication) Gdx.app).getUIViewController(), new FBSDKLoginManager.Block_logInWithReadPermissionsFromViewControllerHandler() {
+            loginManager.logInWithReadPermissionsFromViewControllerHandler(listPermissions, controller, new FBSDKLoginManager.Block_logInWithReadPermissionsFromViewControllerHandler() {
                 @Override
                 public void call_logInWithReadPermissionsFromViewControllerHandler(FBSDKLoginManagerLoginResult loginResult, NSError nsError) {
                     if (nsError != null) {
@@ -250,8 +266,8 @@ public class IOSMOEGDXFacebook extends GDXFacebookBasic {
     @Override
     protected void startSilentSignIn() {
         if (accessToken != null) {
-            for(int i = 0, size = permissions.size; i < size; i++) {
-                if(!FBSDKAccessToken.currentAccessToken().hasGranted(permissions.get(i))) {
+            for (int i = 0, size = permissions.size; i < size; i++) {
+                if (!FBSDKAccessToken.currentAccessToken().hasGranted(permissions.get(i))) {
                     signOut();
                     Gdx.app.debug(GDXFacebookVars.LOG_TAG, "Used access_token is valid but new permissions need to be granted. Need GUI sign in.");
                     callback.onError(new GDXFacebookError("Used access_token is valid but new permissions need to be granted. Need GUI sign in."));
